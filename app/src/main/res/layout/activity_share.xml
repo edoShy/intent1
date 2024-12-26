@@ -7,24 +7,17 @@
     android:padding="16dp"
     android:gravity="center">
 
-    <Button
-        android:id="@+id/openBrowserButton"
+    <EditText
+        android:id="@+id/shareEditText"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Open Browser" />
+        android:layout_height="50dp"
+        android:hint="Enter text to share" />
 
     <Button
-        android:id="@+id/makeCallButton"
+        android:id="@+id/shareButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Make a Call"
-        android:layout_marginTop="16dp" />
-
-    <Button
-        android:id="@+id/shareTextButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Share Text"
+        android:text="Share"
         android:layout_marginTop="16dp" />
 
 </LinearLayout>
