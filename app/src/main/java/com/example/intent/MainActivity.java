@@ -8,13 +8,16 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.bumptech.glide.Glide;
-import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -22,13 +25,16 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.android.material.imageview.ShapeableImageView;
+
 import java.util.Objects;
+
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,38 +44,42 @@ public class MainActivity extends AppCompatActivity {
     TextView name, mail;
 
     private final ActivityResultLauncher<Intent> activityResultLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback<ActivityResult>() {
-                @Override
-                public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == RESULT_OK) {
-                        Task<GoogleSignInAccount> accountTask = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
-                        try {
-                            GoogleSignInAccount signInAccount = accountTask.getResult(ApiException.class);
-                            AuthCredential authCredential = GoogleAuthProvider.getCredential(signInAccount.getIdToken(), null);
-                            auth.signInWithCredential(authCredential).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-                                @Override
-                                public void onComplete(@NonNull Task<AuthResult> task) {
-                                    if (task.isSuccessful()) {
-                                        auth = FirebaseAuth.getInstance();
-                                        Glide.with(MainActivity.this)
-                                                .load(Objects.requireNonNull(auth.getCurrentUser()).getPhotoUrl())
-                                                .into(imageView);
-
-                                        name.setText(auth.getCurrentUser().getDisplayName());
-                                        mail.setText(auth.getCurrentUser().getEmail());
-
-                                        Toast.makeText(MainActivity.this, "Signed in successfully!", Toast.LENGTH_SHORT).show();
-                                    } else {
-                                        Toast.makeText(MainActivity.this, "Failed to sign in: " + task.getException(), Toast.LENGTH_SHORT).show();
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                    new ActivityResultCallback<ActivityResult>() {
+                        @Override
+                        public void onActivityResult(ActivityResult result) {
+                            if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                                Task<GoogleSignInAccount> accountTask = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
+                                try {
+                                    GoogleSignInAccount signInAccount = accountTask.getResult(ApiException.class);
+                                    if (signInAccount != null) {
+                                        AuthCredential authCredential = GoogleAuthProvider.getCredential(signInAccount.getIdToken(), null);
+                                        auth.signInWithCredential(authCredential)
+                                                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<AuthResult> task) {
+                                                        if (task.isSuccessful()) {
+                                                            FirebaseUser user = auth.getCurrentUser();
+                                                            if (user != null) {
+                                                                Glide.with(MainActivity.this)
+                                                                        .load(user.getPhotoUrl())
+                                                                        .into(imageView);
+                                                                name.setText(user.getDisplayName());
+                                                                mail.setText(user.getEmail());
+                                                            }
+                                                            Toast.makeText(MainActivity.this, "Signed in successfully!", Toast.LENGTH_SHORT).show();
+                                                        } else {
+                                                            Toast.makeText(MainActivity.this, "Sign-in failed: " + task.getException(), Toast.LENGTH_SHORT).show();
+                                                        }
+                                                    }
+                                                });
                                     }
+                                } catch (ApiException e) {
+                                    Log.e("SignInError", "Google Sign-In failed: " + e.getMessage());
                                 }
-                            });
-                        } catch (ApiException e) {
-                            e.printStackTrace();
+                            }
                         }
-                    }
-                }
-            });
+                    });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,12 +98,14 @@ public class MainActivity extends AppCompatActivity {
                 .build();
 
         googleSignInClient = GoogleSignIn.getClient(MainActivity.this, options);
-        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth = FirebaseAuth.getInstance();
 
         Button openBrowserButton = findViewById(R.id.openBrowserButton);
         Button makeCallButton = findViewById(R.id.makeCallButton);
         Button shareTextButton = findViewById(R.id.shareTextButton);
-        Button signInButton = findViewById(R.id.signIn);
+
+        // ✅ FIX: Use the correct type for the Google Sign-In button
+        SignInButton signInButton = findViewById(R.id.signIn);
 
         openBrowserButton.setOnClickListener(v -> {
             Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"));
@@ -106,21 +118,14 @@ public class MainActivity extends AppCompatActivity {
             startActivity(callIntent);
         });
 
-        Log.e("SSSSS", "before");
-
         shareTextButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, ShareActivity.class);
-            Log.e("SSSSS", "after");
             startActivity(intent);
-            Log.e("SSSSS", "after start activity");
         });
 
-        signInButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = googleSignInClient.getSignInIntent();
-                activityResultLauncher.launch(intent);
-            }
+        signInButton.setOnClickListener(view -> {
+            Intent intent = googleSignInClient.getSignInIntent();
+            activityResultLauncher.launch(intent);
         });
     }
 }
